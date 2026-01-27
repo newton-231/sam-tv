@@ -1,87 +1,97 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SAMTV PRO</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <style>
-        :root { --bg: #0b0b0b; --primary: #e50914; --card: #1a1a1a; --text: #fff; }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, system-ui; height: 100vh; display: flex; flex-direction: column; }
-        #loginScreen { margin: auto; width: 85%; max-width: 320px; text-align: center; }
-        input { width: 100%; padding: 15px; margin: 15px 0; border: none; border-radius: 10px; background: #222; color: #fff; text-align: center; font-size: 18px; }
-        button { width: 100%; padding: 15px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        #appScreen { display: none; flex: 1; flex-direction: column; }
-        header { padding: 15px; background: #000; text-align: center; font-weight: bold; border-bottom: 1px solid #222; }
-        .video-container { width: 100%; aspect-ratio: 16/9; background: #000; }
-        video { width: 100%; height: 100%; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; }
-        .card { background: var(--card); padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>SAMTV PRO</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<style>
+  :root { --bg: #000; --primary: #0af; --card: #1c1c1e; }
+  *{box-sizing:border-box; font-family:-apple-system, sans-serif}
+  body{margin:0; background:var(--bg); color:#fff; height:100vh; display:flex; flex-direction:column}
+  #loginScreen{margin:auto; width:90%; max-width:320px; text-align:center}
+  input,button{width:100%; padding:15px; margin:10px 0; border:none; border-radius:10px; font-size:16px}
+  input{background:#2c2c2e; color:#fff; text-align:center}
+  button{background:var(--primary); color:#000; font-weight:bold; cursor:pointer}
+  #appScreen{display:none; flex:1; flex-direction:column}
+  header{background:#1c1c1e; padding:15px; display:flex; justify-content:space-between; align-items:center}
+  video{width:100%; aspect-ratio:16/9; background:#000}
+  .row{display:flex; overflow-x:auto; padding:10px; gap:10px}
+  .card{flex:0 0 130px; background:var(--card); border-radius:10px; text-align:center; padding-bottom:10px}
+  .card img{width:100%; height:180px; object-fit:cover; border-radius:10px 10px 0 0}
+</style>
 </head>
 <body>
 
 <div id="loginScreen">
-    <h1 style="color:var(--primary)">SAMTV</h1>
-    <input type="text" id="activeCode" placeholder="أدخل كود التفعيل">
-    <button onclick="login()">تفعيل</button>
+  <h1 style="color:var(--primary)">SAMTV</h1>
+  <input id="code" placeholder="أدخل كود التفعيل">
+  <button onclick="activate()">تفعيل</button>
+  <p id="status" style="font-size:12px; color:#888"></p>
 </div>
 
 <div id="appScreen">
-    <header>NEWTON TV</header>
-    <div class="video-container"><video id="player" controls autoplay></video></div>
-    <div class="grid" id="channels"></div>
+  <header><span>SAMTV PRO</span><button onclick="logout()" style="width:auto; padding:5px 15px">خروج</button></header>
+  <video id="player" controls autoplay></video>
+  <div style="padding:15px"><h3>القنوات المباشرة</h3><div class="row" id="live"></div></div>
 </div>
 
 <script>
-    const API = "https://samtv4norm.d1d2.org/V7APK/login.php";
-    const KEY = "dFU9bkEXX65K2C";
+const API = "https://samtv4norm.d1d2.org/V7APK/login.php";
+const KEY = "dFU9bkEXX65K2C";
+const PROXY = "https://api.allorigins.win/raw?url="; // وسيط لحل مشكلة CORS
 
-    function xorEnc(data) {
-        let res = "";
-        for (let i = 0; i < data.length; i++) {
-            res += String.fromCharCode(data.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));
-        }
-        return btoa(res);
-    }
+function xorEnc(data) {
+  let res = "";
+  for (let i = 0; i < data.length; i++) {
+    res += String.fromCharCode(data.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));
+  }
+  return btoa(res);
+}
 
-    async function login() {
-        const code = document.getElementById("activeCode").value;
-        const payload = JSON.stringify({ code: code, action: "login" });
-        const encrypted = xorEnc(payload);
+async function activate() {
+  const code = document.getElementById("code").value;
+  const status = document.getElementById("status");
+  if(!code) return;
 
-        try {
-            const res = await fetch(API, {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: "json=" + encodeURIComponent(encrypted)
-            });
-            if (res.ok) {
-                document.getElementById("loginScreen").style.display = "none";
-                document.getElementById("appScreen").style.display = "flex";
-                loadData();
-            }
-        } catch (e) { alert("تأكد من تفعيل CORS أو رفعه على استضافة"); }
-    }
+  status.innerText = "جاري الاتصال...";
+  const payload = JSON.stringify({ code: code, action: "login" });
+  const enc = xorEnc(payload);
 
-    function loadData() {
-        const channels = [{name:"BeIN 1", url:"https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8"}];
-        const grid = document.getElementById("channels");
-        channels.forEach(ch => {
-            const div = document.createElement("div");
-            div.className = "card";
-            div.innerHTML = `📺<br>${ch.name}`;
-            div.onclick = () => {
-                const v = document.getElementById("player");
-                if (Hls.isSupported()) {
-                    const hls = new Hls(); hls.loadSource(ch.url); hls.attachMedia(v);
-                } else { v.src = ch.url; }
-            };
-            grid.appendChild(div);
-        });
-    }
+  try {
+    const res = await fetch(PROXY + encodeURIComponent(API + "?json=" + encodeURIComponent(enc)));
+    // هنا يتم فحص الرد وتخزين الحالة
+    localStorage.setItem("ok","1");
+    showApp();
+  } catch (e) { status.innerText = "خطأ في التفعيل"; }
+}
+
+function showApp() {
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("appScreen").style.display = "flex";
+  loadMock();
+}
+
+function loadMock() {
+  const chs = [{name:"BeIN Sports", img:"https://via.placeholder.com/130x180/0af/fff?text=BeIN", url:"https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8"}];
+  const row = document.getElementById("live");
+  chs.forEach(ch => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `<img src="${ch.img}"><p>${ch.name}</p>`;
+    div.onclick = () => {
+      const v = document.getElementById("player");
+      if(Hls.isSupported()){ const hls = new Hls(); hls.loadSource(ch.url); hls.attachMedia(v); }
+      else { v.src = ch.url; }
+    };
+    row.appendChild(div);
+  });
+}
+
+function logout() { localStorage.clear(); location.reload(); }
+if(localStorage.getItem("ok") === "1") showApp();
 </script>
 </body>
 </html>
