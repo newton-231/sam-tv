@@ -19,8 +19,8 @@
   .scroll-area{flex:1; overflow-y:auto; padding:10px}
   .row-title{font-size:18px; margin:15px 5px; color:var(--primary); border-right:4px solid var(--primary); padding-right:10px}
   .row{display:flex; overflow-x:auto; gap:12px; padding-bottom:10px; min-height:50px}
-  .card{flex:0 0 120px; background:var(--card); border-radius:10px; text-align:center}
-  .card img{width:100%; height:160px; object-fit:cover; border-radius:10px 10px 0 0}
+  .card{flex:0 0 120px; background:var(--card); border-radius:10px; text-align:center; cursor:pointer}
+  .card img{width:100%; height:160px; object-fit:cover; border-radius:10px 10px 0 0; background:#333}
   .card p{font-size:11px; margin:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 </style>
 </head>
@@ -47,7 +47,8 @@
 <script>
 const API = "https://samtv4norm.d1d2.org/V7APK/login.php";
 const KEY = "dFU9bkEXX65K2C";
-const PROXY = "https://api.allorigins.win/get?url="; // وسيط لجلب البيانات
+// استخدام وسيط Corsproxy.io الموثوق
+const PROXY = "https://corsproxy.io/?";
 
 let all = { live:[], movies:[], series:[] };
 
@@ -58,15 +59,16 @@ function enc(d){
 async function activate(){
   const c = document.getElementById("code").value.trim();
   if(!c) return;
-  document.getElementById("status").innerText = "جاري الاتصال...";
+  document.getElementById("status").innerText = "جاري التفعيل...";
   try {
     const p = enc(JSON.stringify({code:c, action:"login"}));
     const r = await fetch(PROXY + encodeURIComponent(API + "?json=" + encodeURIComponent(p)));
-    const j = await r.json();
-    const data = JSON.parse(j.contents); // استخراج البيانات من الوسيط
-    localStorage.setItem("ok","1"); localStorage.setItem("code",c);
-    showApp();
-  } catch(e){ document.getElementById("status").innerText = "تأكد من الكود"; }
+    const data = await r.json();
+    if(data) {
+       localStorage.setItem("ok","1"); localStorage.setItem("code",c);
+       showApp();
+    }
+  } catch(e){ document.getElementById("status").innerText = "الكود غير صحيح أو مشكلة في السيرفر"; }
 }
 
 async function load(act, id, key){
@@ -74,19 +76,18 @@ async function load(act, id, key){
   const p = enc(JSON.stringify({code:c, action:act}));
   try {
     const r = await fetch(PROXY + encodeURIComponent(API + "?json=" + encodeURIComponent(p)));
-    const j = await r.json();
-    const data = JSON.parse(j.contents);
+    const data = await r.json();
     if(data && data.list){
       all[key] = data.list;
       render(id, data.list);
     }
-  } catch(e){ document.getElementById(id).innerText = "خطأ في التحميل"; }
+  } catch(e){ document.getElementById(id).innerText = "خطأ في الاتصال"; }
 }
 
 function render(id, l){
   document.getElementById(id).innerHTML = l.map(i => `
     <div class="card" onclick="play('${i.url}')">
-      <img src="${i.logo || i.image || ''}" onerror="this.src='https://via.placeholder.com/120x160/222/fff?text=TV'">
+      <img src="${i.logo || i.image || ''}" onerror="this.src='https://via.placeholder.com/120x160/222/fff?text=SAMTV'">
       <p>${i.name}</p>
     </div>
   `).join('');
@@ -96,6 +97,7 @@ function play(u){
   const v = document.getElementById("player");
   if(Hls.isSupported()){ const h = new Hls(); h.loadSource(u); h.attachMedia(v); }
   else { v.src = u; }
+  v.play();
 }
 
 function showApp(){
@@ -107,6 +109,8 @@ function showApp(){
 function search(){
   const q = document.getElementById("src").value.toLowerCase();
   render("live", all.live.filter(i=>i.name.toLowerCase().includes(q)));
+  render("movies", all.movies.filter(i=>i.name.toLowerCase().includes(q)));
+  render("series", all.series.filter(i=>i.name.toLowerCase().includes(q)));
 }
 
 function logout(){ localStorage.clear(); location.reload(); }
