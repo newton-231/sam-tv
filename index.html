@@ -3,33 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>SAMTV PRO - النسخة الكاملة</title>
+<title>SAMTV PRO</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
   :root { --bg: #000; --primary: #0af; --card: #1c1c1e; }
   *{box-sizing:border-box; font-family:-apple-system, sans-serif}
   body{margin:0; background:var(--bg); color:#fff; height:100vh; overflow:hidden; display:flex; flex-direction:column}
-  
-  /* شاشة الدخول */
   #loginScreen { margin:auto; width:90%; max-width:320px; text-align:center }
   input, button { width:100%; padding:15px; margin:10px 0; border:none; border-radius:10px; font-size:16px }
   input { background:#2c2c2e; color:#fff; text-align:center }
   button { background:var(--primary); color:#000; font-weight:bold; cursor:pointer }
-
-  /* الواجهة الرئيسية */
   #appScreen { display:none; flex:1; flex-direction:column; overflow:hidden }
   header { background:#1c1c1e; padding:10px 15px; display:flex; justify-content:space-between; align-items:center; z-index:100 }
-  
-  .search-bar { padding:10px; background:#111; position:sticky; top:0; z-index:95 }
+  .search-bar { padding:10px; background:#111; z-index:95 }
   .search-bar input { margin:0; padding:10px; background:#222; font-size:14px; text-align:right }
-
-  video { width:100%; aspect-ratio:16/9; background:#000; position:sticky; top:0; z-index:90 }
-  
+  video { width:100%; aspect-ratio:16/9; background:#000; z-index:90 }
   .scroll-area { flex:1; overflow-y:auto; padding:10px }
   .section-title { font-size:18px; margin:20px 5px 10px; color:var(--primary); border-right: 4px solid var(--primary); padding-right: 10px; }
-  .row { display:flex; overflow-x:auto; gap:12px; padding-bottom:15px }
-  
-  .card { flex:0 0 130px; background:var(--card); border-radius:10px; text-align:center; transition: 0.2s; }
+  .row { display:flex; overflow-x:auto; gap:12px; padding-bottom:15px; min-height: 50px; }
+  .card { flex:0 0 130px; background:var(--card); border-radius:10px; text-align:center }
   .card img { width:100%; height:180px; object-fit:cover; border-radius:10px 10px 0 0; background:#333 }
   .card p { font-size:12px; margin:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 </style>
@@ -46,24 +38,21 @@
 <div id="appScreen">
   <header><span>SAMTV</span><button onclick="logout()" style="width:auto; padding:5px 10px; margin:0">خروج</button></header>
   <video id="player" controls autoplay playsinline></video>
-  <div class="search-bar"><input type="text" id="searchInput" placeholder="ابحث عن قناة، فيلم، أو مسلسل..." oninput="filterAll()"></div>
-
+  <div class="search-bar"><input type="text" id="searchInput" placeholder="ابحث عن قناة أو فيلم..." oninput="filterAll()"></div>
   <div class="scroll-area">
     <div class="section-title">القنوات المباشرة</div>
-    <div class="row" id="liveRow"></div>
-    
+    <div id="liveRow" class="row"></div>
     <div class="section-title">الأفلام</div>
-    <div class="row" id="moviesRow"></div>
-    
+    <div id="moviesRow" class="row"></div>
     <div class="section-title">المسلسلات</div>
-    <div class="row" id="seriesRow"></div>
+    <div id="seriesRow" class="row"></div>
   </div>
 </div>
 
 <script>
 const API = "https://samtv4norm.d1d2.org/V7APK/login.php";
 const KEY = "dFU9bkEXX65K2C";
-const PROXY = "https://api.allorigins.win/raw?url=";
+const PROXY = "https://api.allorigins.win/raw?url="; // وسيط CORS لتشغيل البيانات على الأيفون
 
 let db = { live: [], movies: [], series: [] };
 
@@ -76,11 +65,11 @@ function xorEnc(data) {
 async function activate() {
   const code = document.getElementById("code").value.trim();
   if(!code) return;
-  document.getElementById("status").innerText = "جاري جلب البيانات من السيرفر...";
+  document.getElementById("status").innerText = "جاري الاتصال بالسيرفر...";
 
+  const payload = xorEnc(JSON.stringify({ code: code, action: "login" }));
   try {
-    const enc = xorEnc(JSON.stringify({ code: code, action: "login" }));
-    const res = await fetch(PROXY + encodeURIComponent(API + "?json=" + encodeURIComponent(enc)));
+    const res = await fetch(PROXY + encodeURIComponent(API + "?json=" + encodeURIComponent(payload)));
     if(res.ok) {
       localStorage.setItem("ok","1");
       localStorage.setItem("user_code", code);
@@ -89,42 +78,34 @@ async function activate() {
   } catch (e) { document.getElementById("status").innerText = "خطأ في الاتصال"; }
 }
 
-async function loadAll() {
+async function loadSection(action, rowId, storageKey) {
   const code = localStorage.getItem("user_code");
-  const tasks = [
-    {act: "get_live", id: "liveRow", key: "live"},
-    {act: "get_movies", id: "moviesRow", key: "movies"},
-    {act: "get_series", id: "seriesRow", key: "series"}
-  ];
-
-  for(let t of tasks) {
-    const enc = xorEnc(JSON.stringify({ code: code, action: t.act }));
-    try {
-      const res = await fetch(PROXY + encodeURIComponent(API + "?json=" + encodeURIComponent(enc)));
-      const data = await res.json();
-      if(data && data.list) {
-        db[t.key] = data.list;
-        render(t.id, data.list);
-      }
-    } catch(e) { document.getElementById(t.id).innerText = "تعذر تحميل هذا القسم"; }
-  }
+  const payload = xorEnc(JSON.stringify({ code: code, action: action }));
+  try {
+    const res = await fetch(PROXY + encodeURIComponent(API + "?json=" + encodeURIComponent(payload)));
+    const data = await res.json();
+    if(data && data.list) {
+      db[storageKey] = data.list;
+      render(rowId, data.list);
+    }
+  } catch(e) { document.getElementById(rowId).innerText = "تعذر التحميل"; }
 }
 
 function render(id, list) {
   const row = document.getElementById(id);
-  row.innerHTML = list.map(item => `
+  row.innerHTML = list.length ? list.map(item => `
     <div class="card" onclick="play('${item.url}')">
       <img src="${item.logo || item.image || ''}" onerror="this.src='https://via.placeholder.com/130x180/222/fff?text=SAMTV'">
       <p>${item.name}</p>
     </div>
-  `).join('');
+  `).join('') : "لا توجد نتائج";
 }
 
 function filterAll() {
-  const term = document.getElementById("searchInput").value.toLowerCase();
-  render("liveRow", db.live.filter(i => i.name.toLowerCase().includes(term)));
-  render("moviesRow", db.movies.filter(i => i.name.toLowerCase().includes(term)));
-  render("seriesRow", db.series.filter(i => i.name.toLowerCase().includes(term)));
+  const s = document.getElementById("searchInput").value.toLowerCase();
+  render("liveRow", db.live.filter(i => i.name.toLowerCase().includes(s)));
+  render("moviesRow", db.movies.filter(i => i.name.toLowerCase().includes(s)));
+  render("seriesRow", db.series.filter(i => i.name.toLowerCase().includes(s)));
 }
 
 function play(url) {
@@ -132,13 +113,14 @@ function play(url) {
   if(Hls.isSupported()){
     const hls = new Hls(); hls.loadSource(url); hls.attachMedia(v);
   } else { v.src = url; }
-  window.scrollTo({top:0, behavior:'smooth'});
 }
 
 function showApp() {
   document.getElementById("loginScreen").style.display = "none";
   document.getElementById("appScreen").style.display = "flex";
-  loadAll();
+  loadSection("get_live", "liveRow", "live");
+  loadSection("get_movies", "moviesRow", "movies");
+  loadSection("get_series", "seriesRow", "series");
 }
 
 function logout() { localStorage.clear(); location.reload(); }
