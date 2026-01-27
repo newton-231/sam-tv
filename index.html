@@ -10,44 +10,45 @@
   *{box-sizing:border-box; font-family:-apple-system, sans-serif}
   body{margin:0; background:var(--bg); color:#fff; height:100vh; overflow:hidden; display:flex; flex-direction:column}
   #loginScreen{margin:auto; width:90%; max-width:320px; text-align:center}
-  input,button{width:100%; padding:15px; margin:10px 0; border:none; border-radius:10px; font-size:16px}
-  input{background:#2c2c2e; color:#fff; text-align:center}
+  input,button{width:100%; padding:15px; margin:10px 0; border:none; border-radius:12px; font-size:16px}
+  input{background:#222; color:#fff; text-align:center; border:1px solid #333}
   button{background:var(--primary); color:#000; font-weight:bold; cursor:pointer}
   #appScreen{display:none; flex:1; flex-direction:column; overflow:hidden}
-  header{background:#1c1c1e; padding:15px; display:flex; justify-content:space-between; align-items:center}
-  video{width:100%; aspect-ratio:16/9; background:#000}
+  header{background:#111; padding:15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #222}
+  video{width:100%; aspect-ratio:16/9; background:#000; border-bottom:2px solid var(--primary)}
   .scroll-area{flex:1; overflow-y:auto; padding:10px}
-  .row-title{font-size:18px; margin:15px 5px; color:var(--primary); border-right:4px solid var(--primary); padding-right:10px}
-  .row{display:flex; overflow-x:auto; gap:12px; padding-bottom:10px; min-height:50px}
-  .card{flex:0 0 120px; background:var(--card); border-radius:10px; text-align:center}
-  .card img{width:100%; height:160px; object-fit:cover; border-radius:10px 10px 0 0}
-  .card p{font-size:11px; margin:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .row-title{font-size:16px; margin:20px 5px 10px; color:var(--primary); font-weight:bold}
+  .row{display:flex; overflow-x:auto; gap:12px; padding-bottom:15px; min-height:100px}
+  .card{flex:0 0 110px; background:var(--card); border-radius:10px; text-align:center; position:relative}
+  .card img{width:100%; height:150px; object-fit:cover; border-radius:10px}
+  .card p{font-size:10px; margin:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 </style>
 </head>
 <body>
 
 <div id="loginScreen">
-  <h1 style="color:var(--primary)">SAMTV PRO</h1>
-  <input id="code" placeholder="أدخل كود التفعيل">
-  <button onclick="activate()">تفعيل ودخول</button>
-  <p id="status" style="font-size:12px; color:#ff3b30"></p>
+  <h2 style="color:var(--primary)">SAMTV PRO</h2>
+  <p style="font-size:12px; color:#888">أدخل كود التفعيل الخاص بك</p>
+  <input id="code" type="text" placeholder="0000 0000 0000" value="477500438590">
+  <button onclick="activate()">تفعيل النظام</button>
+  <p id="status" style="font-size:12px; color:#ff453a"></p>
 </div>
 
 <div id="appScreen">
-  <header><span>SAMTV</span><button onclick="logout()" style="width:auto; padding:5px 15px; margin:0">خروج</button></header>
+  <header><span>SAMTV</span><button onclick="logout()" style="width:auto; padding:5px 12px; font-size:12px">خروج</button></header>
   <video id="player" controls autoplay playsinline></video>
   <div class="scroll-area">
-    <div class="row-title">القنوات المباشرة</div><div class="row" id="liveRow"></div>
-    <div class="row-title">الأفلام</div><div class="row" id="moviesRow"></div>
-    <div class="row-title">المسلسلات</div><div class="row" id="seriesRow"></div>
+    <div class="row-title">📺 القنوات المباشرة</div><div class="row" id="liveRow">جاري التحميل...</div>
+    <div class="row-title">🎬 الأفلام</div><div class="row" id="moviesRow">جاري التحميل...</div>
+    <div class="row-title">🎭 المسلسلات</div><div class="row" id="seriesRow">جاري التحميل...</div>
   </div>
 </div>
 
 <script>
 const API = "https://samtv4norm.d1d2.org/V7APK/login.php";
 const KEY = "dFU9bkEXX65K2C";
-// استخدام وسيط يدعم جلب البيانات المباشرة للمتصفحات
-const PROXY = "https://api.allorigins.win/raw?url=";
+// استخدام وسيط مخصص لحل مشاكل الاتصال
+const PROXY = "https://api.allorigins.win/get?url=";
 
 function xor(d){
   return btoa(d.split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)^KEY.charCodeAt(i%KEY.length))).join(''));
@@ -56,39 +57,50 @@ function xor(d){
 async function activate(){
   const c = document.getElementById("code").value.trim();
   if(!c) return;
-  document.getElementById("status").innerText = "جاري التحقق...";
+  document.getElementById("status").innerText = "جاري التحقق من الصلاحية...";
   
-  const p = xor(JSON.stringify({code:c, action:"login"}));
   try {
-    const r = await fetch(PROXY + encodeURIComponent(API + "?json=" + encodeURIComponent(p)));
-    if(r.ok) {
-      localStorage.setItem("ok","1"); localStorage.setItem("code",c);
+    const payload = xor(JSON.stringify({code:c, action:"login"}));
+    const url = API + "?json=" + encodeURIComponent(payload);
+    const res = await fetch(PROXY + encodeURIComponent(url));
+    const data = await res.json();
+    
+    // فحص إذا كان الرد يحتوي على بيانات حقيقية
+    if(data.contents.includes("status")) {
+      localStorage.setItem("ok","1"); localStorage.setItem("u_code",c);
       showApp();
-    } else { throw new Error(); }
-  } catch(e){ document.getElementById("status").innerText = "الكود غير صحيح أو مشكلة في السيرفر"; }
+    } else {
+      document.getElementById("status").innerText = "الكود غير مفعل أو انتهت صلاحيته";
+    }
+  } catch(e){ document.getElementById("status").innerText = "خطأ في الاتصال بالسيرفر"; }
 }
 
 async function load(act, id){
-  const c = localStorage.getItem("code");
+  const c = localStorage.getItem("u_code");
   const p = xor(JSON.stringify({code:c, action:act}));
+  const url = API + "?json=" + encodeURIComponent(p);
+  
   try {
-    const r = await fetch(PROXY + encodeURIComponent(API + "?json=" + encodeURIComponent(p)));
-    const data = await r.json();
-    if(data && data.list){
-      document.getElementById(id).innerHTML = data.list.map(i => `
+    const res = await fetch(PROXY + encodeURIComponent(url));
+    const json = await res.json();
+    const result = JSON.parse(json.contents); // تحويل النص المسترجع إلى JSON حقيقي
+    
+    if(result && result.list){
+      document.getElementById(id).innerHTML = result.list.map(i => `
         <div class="card" onclick="play('${i.url}')">
-          <img src="${i.logo || i.image || ''}" onerror="this.src='https://via.placeholder.com/120x160/222/fff?text=SAMTV'">
+          <img src="${i.logo || i.image || 'https://via.placeholder.com/110x150/222/fff?text=SAMTV'}">
           <p>${i.name}</p>
         </div>
       `).join('');
-    }
-  } catch(e){ document.getElementById(id).innerText = "تعذر تحميل البيانات"; }
+    } else { document.getElementById(id).innerText = "لا توجد بيانات"; }
+  } catch(e){ document.getElementById(id).innerText = "فشل التحميل"; }
 }
 
 function play(u){
   const v = document.getElementById("player");
   if(Hls.isSupported()){ const h = new Hls(); h.loadSource(u); h.attachMedia(v); }
   else { v.src = u; }
+  v.play();
 }
 
 function showApp(){
