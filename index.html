@@ -7,22 +7,20 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         :root { --bg: #000; --primary: #00aaff; --card: #121212; }
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-        body { margin: 0; background: var(--bg); color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { margin: 0; background: var(--bg); color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         #loginScreen { margin: auto; width: 90%; max-width: 320px; text-align: center; }
         input, button { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 12px; font-size: 16px; -webkit-appearance: none; }
         input { background: #1c1c1e; color: #fff; text-align: center; border: 1px solid #333; }
         button { background: var(--primary); color: #000; font-weight: bold; cursor: pointer; }
         #appScreen { display: none; flex: 1; flex-direction: column; overflow: hidden; }
-        header { background: #111; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; }
-        video { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid var(--primary); }
-        .scroll-area { flex: 1; overflow-y: auto; padding: 10px; -webkit-overflow-scrolling: touch; }
-        .section-title { font-size: 18px; margin: 15px 5px; color: var(--primary); font-weight: bold; }
-        .row { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 15px; }
-        .card { flex: 0 0 120px; background: var(--card); border-radius: 10px; text-align: center; border: 1px solid #222; }
-        .card img { width: 100%; height: 160px; object-fit: cover; border-radius: 10px 10px 0 0; }
-        .card p { font-size: 11px; margin: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        #status { font-size: 13px; color: #ff3b30; margin-top: 10px; font-weight: bold; }
+        header { background: #111; padding: 15px; text-align: center; border-bottom: 1px solid #222; font-weight: bold; }
+        video { width: 100%; aspect-ratio: 16/9; background: #000; }
+        .scroll-area { flex: 1; overflow-y: auto; padding: 10px; }
+        .row { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; }
+        .card { flex: 0 0 110px; background: var(--card); border-radius: 10px; text-align: center; border: 1px solid #222; }
+        .card img { width: 100%; height: 150px; object-fit: cover; border-radius: 10px 10px 0 0; }
+        .card p { font-size: 10px; margin: 5px; white-space: nowrap; overflow: hidden; }
+        #status { font-size: 12px; color: #ff3b30; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -30,20 +28,17 @@
 <div id="loginScreen">
     <h1 style="color:var(--primary)">SAMTV PRO</h1>
     <input id="code" type="text" placeholder="أدخل كود التفعيل" value="477500438590">
-    <button onclick="activate()">تفعيل ودخول</button>
+    <button onclick="activate()">دخول</button>
     <p id="status"></p>
 </div>
 
 <div id="appScreen">
-    <header><span>SAMTV PRO</span><button onclick="logout()" style="width:auto; padding:5px 12px; margin:0; background:#ff3b30; color:#fff;">خروج</button></header>
+    <header>SAMTV PRO</header>
     <video id="player" controls playsinline autoplay></video>
-    <div class="scroll-area">
-        <div id="contentRows"></div>
-    </div>
+    <div class="scroll-area" id="content"></div>
 </div>
 
 <script>
-// تأكد من أن هذا هو رابط الوركر الخاص بك الذي فعلته الآن
 const WORKER_URL = "https://sam-tv.ishaak231.workers.dev";
 const KEY = "dFU9bkEXX65K2C";
 
@@ -54,79 +49,48 @@ function xor(d) {
 async function apiRequest(action) {
     const code = localStorage.getItem("u_code");
     if(!code) return null;
-    
     const p = xor(JSON.stringify({ code: code, action: action }));
-    
-    // إرسال البيانات عبر GET مع تشفير الرابط لضمان وصوله للوركر سليم
-    const finalUrl = `${WORKER_URL}?json=${encodeURIComponent(p)}&_t=${Date.now()}`;
-    
+    // إضافة علامة استفهام للتأكد من أن المعاملات ترسل بشكل صحيح
     try {
-        const res = await fetch(finalUrl);
-        if (!res.ok) return null;
+        const res = await fetch(`${WORKER_URL}/?json=${encodeURIComponent(p)}`);
         return await res.json();
-    } catch (err) {
-        return null;
-    }
+    } catch (e) { return null; }
 }
 
 async function activate() {
-    const status = document.getElementById("status");
     const code = document.getElementById("code").value.trim();
-    if(!code) return;
-    
     localStorage.setItem("u_code", code);
-    status.innerText = "جاري الاتصال بالوركر...";
+    document.getElementById("status").innerText = "جاري الاتصال...";
     
     const data = await apiRequest("login");
-
-    if (!data) {
-        status.innerText = "تعذر الاتصال بالوركر - تحقق من الرابط";
-    } else if (!data.status) {
-        status.innerText = "الكود غير صحيح أو انتهى";
-    } else {
+    if (data && data.status) {
         localStorage.setItem("is_logged", "1");
         showApp();
+    } else {
+        document.getElementById("status").innerText = "تعذر الاتصال بالوركر - تأكد من تفعيل Route";
     }
 }
 
 async function showApp() {
     document.getElementById("loginScreen").style.display = "none";
     document.getElementById("appScreen").style.display = "flex";
-    
-    const [live, vod] = await Promise.all([apiRequest("get_live"), apiRequest("get_movies")]);
-    
-    let html = "";
-    if(live && live.list) html += `<div class="section-title">📺 القنوات المباشرة</div><div class="row">${render(live.list)}</div>`;
-    if(vod && vod.list) html += `<div class="section-title">🎬 الأفلام والمسلسلات</div><div class="row">${render(vod.list)}</div>`;
-    document.getElementById("contentRows").innerHTML = html;
-}
-
-function render(list) {
-    return list.map(i => `
-        <div class="card" onclick="play('${i.url}')">
-            <img src="${i.logo || i.image || ''}" onerror="this.src='https://via.placeholder.com/120x160/222/fff?text=TV'">
-            <p>${i.name}</p>
-        </div>
-    `).join('');
+    const live = await apiRequest("get_live");
+    if (live && live.list) {
+        document.getElementById("content").innerHTML = `<div class="row">${live.list.map(i => `
+            <div class="card" onclick="play('${i.url}')">
+                <img src="${i.logo || ''}" onerror="this.src='https://via.placeholder.com/110x150/222/fff?text=TV'">
+                <p>${i.name}</p>
+            </div>`).join('')}</div>`;
+    }
 }
 
 function play(u) {
     const v = document.getElementById("player");
-    // الأولوية لمشغل Safari الأصلي لتفادي مشاكل الأداء
-    if (v.canPlayType("application/vnd.apple.mpegurl")) {
-        v.src = u;
-    } else if (Hls.isSupported()) {
-        const h = new Hls();
-        h.loadSource(u);
-        h.attachMedia(v);
-    } else {
-        v.src = u;
-    }
+    if (v.canPlayType("application/vnd.apple.mpegurl")) { v.src = u; }
+    else if (Hls.isSupported()) { const h = new Hls(); h.loadSource(u); h.attachMedia(v); }
     v.play();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function logout() { localStorage.clear(); location.reload(); }
 if(localStorage.getItem("is_logged") === "1") showApp();
 </script>
 </body>
