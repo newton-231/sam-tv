@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>SAMTV PRO - Stable</title>
+    <title>SAMTV PRO</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         :root { --bg: #000; --primary: #00aaff; --card: #121212; }
@@ -19,7 +19,7 @@
         .scroll-area { flex: 1; overflow-y: auto; padding: 10px; -webkit-overflow-scrolling: touch; }
         .section-title { font-size: 18px; margin: 15px 5px; color: var(--primary); font-weight: bold; }
         .row { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 15px; }
-        .card { flex: 0 0 120px; background: var(--card); border-radius: 10px; text-align: center; border: 1px solid #222; }
+        .card { flex: 0 0 120px; background: var(--card); border-radius: 10px; text-align: center; border: 1px solid #222; cursor: pointer; }
         .card img { width: 100%; height: 160px; object-fit: cover; border-radius: 10px 10px 0 0; }
         .card p { font-size: 11px; margin: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #status { font-size: 13px; color: #ff3b30; margin-top: 10px; font-weight: bold; }
@@ -35,7 +35,7 @@
 </div>
 
 <div id="appScreen">
-    <header><span>SAMTV PRO</span><button onclick="logout()" style="width:auto; padding:5px 12px; margin:0; background:#ff3b30; color:#fff;">خروج</button></header>
+    <header><span>SAMTV PRO</span><button onclick="logout()" style="width:auto; padding:5px 12px; margin:0; background:#ff3b30; color:#fff; font-size: 12px;">خروج</button></header>
     <video id="player" controls playsinline autoplay></video>
     <div class="scroll-area">
         <div id="contentRows"></div>
@@ -43,49 +43,54 @@
 </div>
 
 <script>
+// --- الإعدادات ---
 const WORKER_URL = "https://sam-tv.ishaak231.workers.dev";
 const KEY = "dFU9bkEXX65K2C";
 
+// --- التشفير ---
 function xor(d) {
     return btoa(d.split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ KEY.charCodeAt(i % KEY.length))).join(''));
 }
 
+// --- طلب البيانات من الوركر ---
 async function apiRequest(action) {
     const code = localStorage.getItem("u_code");
     if(!code) return null;
+    
     const p = xor(JSON.stringify({ code: code, action: action }));
     const finalUrl = `${WORKER_URL}?json=${encodeURIComponent(p)}&_t=${Date.now()}`;
     
     try {
         const res = await fetch(finalUrl);
-        const data = await res.json();
-        return data;
+        if (!res.ok) return null;
+        return await res.json();
     } catch (err) {
-        console.error("Fetch Error:", err);
         return null;
     }
 }
 
+// --- التفعيل ---
 async function activate() {
     const status = document.getElementById("status");
     const code = document.getElementById("code").value.trim();
     if(!code) return;
     
-    try { localStorage.setItem("u_code", code); } catch(e) { status.innerText = "تنبيه: أنت في وضع التصفح الخصوصي، لن يتم حفظ الكود."; }
+    try { localStorage.setItem("u_code", code); } catch(e) {}
     
-    status.innerText = "جاري التحقق من البيانات...";
+    status.innerText = "جاري التحقق...";
     const data = await apiRequest("login");
 
     if (!data) {
-        status.innerText = "تعذر الاتصال بالخادم (Worker)";
+        status.innerText = "تعذر الاتصال بالوركر - تأكد من الرابط";
     } else if (!data.status) {
-        status.innerText = "الكود غير صحيح أو منتهي الصلاحية";
+        status.innerText = "الكود غير صحيح أو انتهت صلاحيته";
     } else {
         localStorage.setItem("is_logged", "1");
         showApp();
     }
 }
 
+// --- عرض التطبيق والقنوات ---
 async function showApp() {
     document.getElementById("loginScreen").style.display = "none";
     document.getElementById("appScreen").style.display = "flex";
@@ -93,25 +98,26 @@ async function showApp() {
     const [live, vod] = await Promise.all([apiRequest("get_live"), apiRequest("get_movies")]);
     
     let html = "";
-    if(live && live.list) html += `<div class="section-title">📺 القنوات المباشرة</div><div class="row">${render(live.list)}</div>`;
-    if(vod && vod.list) html += `<div class="section-title">🎬 الأفلام والمسلسلات</div><div class="row">${render(vod.list)}</div>`;
-    document.getElementById("contentRows").innerHTML = html;
+    if(live && live.list) html += `<div class="section-title">📺 القنوات المباشرة</div><div class="row">${renderItems(live.list)}</div>`;
+    if(vod && vod.list) html += `<div class="section-title">🎬 الأفلام والمسلسلات</div><div class="row">${renderItems(vod.list)}</div>`;
+    
+    document.getElementById("contentRows").innerHTML = html || "<p style='text-align:center'>لا توجد بيانات حالياً</p>";
 }
 
-function render(list) {
+function renderItems(list) {
     return list.map(i => `
-        <div class="card" onclick="play('${i.url}')">
+        <div class="card" onclick="playStream('${i.url}')">
             <img src="${i.logo || i.image || ''}" onerror="this.src='https://via.placeholder.com/120x160/222/fff?text=TV'">
             <p>${i.name}</p>
         </div>
     `).join('');
 }
 
-function play(u) {
+// --- تشغيل البث (Safari Native + HLS.js) ---
+function playStream(u) {
     const v = document.getElementById("player");
-    // الأولوية لمشغل Safari الأصلي لتفادي مشاكل hls.js
     if (v.canPlayType("application/vnd.apple.mpegurl")) {
-        v.src = u;
+        v.src = u; // للأيفون Safari
     } else if (Hls.isSupported()) {
         const h = new Hls();
         h.loadSource(u);
@@ -124,6 +130,8 @@ function play(u) {
 }
 
 function logout() { localStorage.clear(); location.reload(); }
+
+// التحقق من حالة الدخول السابقة
 if(localStorage.getItem("is_logged") === "1") showApp();
 </script>
 </body>
