@@ -5,64 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SAMTV</title>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; font-family: sans-serif; }
-        body { background:#000; color:#fff; text-align:center; padding:50px; }
-        input, button { padding:15px; margin:10px; border-radius:10px; font-size:16px; }
-        input { width:300px; background:#222; color:#fff; border:1px solid #444; }
-        button { background:#0af; color:#000; border:none; font-weight:bold; cursor:pointer; }
+        body { 
+            background: black; 
+            color: white; 
+            text-align: center; 
+            padding: 50px; 
+            font-family: Arial, sans-serif; 
+        }
+        h1 { color: #0af; margin-bottom: 30px; }
+        .box { 
+            background: #1a1a1a; 
+            padding: 30px; 
+            border-radius: 15px; 
+            display: inline-block; 
+            margin-top: 50px; 
+        }
     </style>
 </head>
 <body>
-
-<h1>📺 SAMTV</h1>
-<input id="code" placeholder="أدخل كود التفعيل">
-<button onclick="testConnection()">اختبار الاتصال</button>
-<div id="result" style="margin-top:20px;"></div>
-
-<script>
-async function testConnection() {
-    const code = document.getElementById('code').value || "29319bd15409c675dc2c942946ff972e9a254c43";
-    const result = document.getElementById('result');
     
-    result.innerHTML = "جاري الاختبار...";
+    <!-- هذا نص اختباري يجب أن يظهر -->
+    <h1>📺 SAMTV - TEST PAGE</h1>
+    <p>إذا كنت ترى هذا النص، فالصفحة تعمل!</p>
     
-    try {
-        // 1. اختبار تشفير XOR
-        const encrypted = xorEncrypt(JSON.stringify({
-            code: code,
-            action: "get_live"
-        }));
-        
-        // 2. اختبار الاتصال بالسيرفر
-        const response = await fetch('https://samtv4norm.d1d2.org/login.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': 'SAMTVPro/5.3 (Android; IPTV)'
-            },
-            body: `json=${encodeURIComponent(encrypted)}`
-        });
-        
-        const data = await response.json();
-        
-        if(data.status === "success") {
-            result.innerHTML = `✅ نجاح! تم جلب ${data.list?.length || 0} قناة`;
-            console.log("القنوات:", data.list);
-        } else {
-            result.innerHTML = `❌ فشل: ${data.message || "كود غير صالح"}`;
-        }
-    } catch(error) {
-        result.innerHTML = `❌ خطأ: ${error.message}`;
-        console.error("تفاصيل الخطأ:", error);
-    }
-}
-
-function xorEncrypt(data) {
-    const XOR_KEY = "123456";
-    return btoa(data.split('').map((c, i) =>
-        String.fromCharCode(c.charCodeAt(0) ^ XOR_KEY.charCodeAt(i % XOR_KEY.length))
-    ).join(''));
-}
-</script>
+    <div class="box">
+        <h3>اختبار الاتصال الأساسي</h3>
+        <button onclick="alert('الزر يعمل!')" style="
+            background: #0af;
+            color: black;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            margin-top: 20px;
+            cursor: pointer;
+        ">
+            انقر هنا للاختبار
+        </button>
+    </div>
+    
+    <div style="margin-top: 50px; color: #888; font-size: 14px;">
+        <p>صفحة اختبار SAMTV - الإصدار: 1.0</p>
+        <p>إذا لم ترى هذا، هناك مشكلة في تحميل الصفحة</p>
+    </div>
+    
 </body>
 </html>
