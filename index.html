@@ -2,89 +2,105 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SAMTV</title>
+    <title>SAMTV - TEST</title>
     <style>
-        body { background:#000; color:#fff; font-family:Arial; text-align:center; padding:50px; }
-        h1 { color:#0af; margin-bottom:30px; }
-        .test-box { background:#111; padding:30px; border-radius:15px; margin:30px auto; max-width:400px; }
-        button { background:#0af; color:#000; border:none; padding:15px 30px; border-radius:10px; font-size:16px; cursor:pointer; }
-        .status { margin-top:20px; padding:10px; border-radius:5px; }
-        .success { background:#0a4; }
-        .error { background:#a00; }
+        body { 
+            background: #000000; 
+            color: #ffffff; 
+            font-family: Arial; 
+            text-align: center; 
+            padding: 100px 20px; 
+        }
+        h1 { 
+            color: #00aaff; 
+            font-size: 40px; 
+            margin-bottom: 20px; 
+        }
+        .box { 
+            background: #111111; 
+            padding: 30px; 
+            border-radius: 15px; 
+            display: inline-block; 
+            margin: 30px auto; 
+            max-width: 400px; 
+            border: 2px solid #00aaff; 
+        }
+        button { 
+            background: #00aaff; 
+            color: #000000; 
+            border: none; 
+            padding: 15px 30px; 
+            border-radius: 10px; 
+            font-size: 18px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin-top: 20px; 
+        }
+        .status { 
+            margin-top: 20px; 
+            padding: 15px; 
+            border-radius: 8px; 
+            font-size: 16px; 
+        }
+        .success { background: #00aa00; }
+        .error { background: #ff3333; }
     </style>
 </head>
 <body>
 
-<h1>📺 SAMTV - صفحة الاختبار</h1>
-<p>إذا ترى هذا، فالصفحة تعمل!</p>
+<h1>📺 SAMTV - TEST PAGE</h1>
+<p>هذه صفحة اختبار. إذا ترى هذا، الموقع يعمل!</p>
 
-<div class="test-box">
-    <h3>اختبار الاتصال بـ SAMTV</h3>
-    <p>أدخل كود التفعيل:</p>
-    <input type="text" id="codeInput" placeholder="كود التفعيل" style="
-        width:100%; padding:12px; margin:10px 0; 
-        background:#222; color:#fff; border:1px solid #444;
-        border-radius:8px; text-align:center;
-    " value="29319bd15409c675dc2c942946ff972e9a254c43">
+<div class="box">
+    <h3>اختبار سريع</h3>
+    <p>ادخل أي نص واضغط الزر:</p>
+    <input type="text" id="testInput" placeholder="اكتب أي شيء" style="
+        width: 90%;
+        padding: 12px;
+        margin: 10px 0;
+        background: #222222;
+        color: #ffffff;
+        border: 1px solid #444444;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 16px;
+    ">
     
-    <button onclick="testLogin()">اختبار الكود</button>
+    <button onclick="runTest()">تشغيل الاختبار</button>
     
-    <div id="result" class="status"></div>
+    <div id="testResult" class="status"></div>
 </div>
 
 <script>
-async function testLogin() {
-    const code = document.getElementById('codeInput').value.trim();
-    const result = document.getElementById('result');
+function runTest() {
+    const input = document.getElementById('testInput').value;
+    const result = document.getElementById('testResult');
     
-    if(!code) {
-        result.innerHTML = '<span class="error">❌ أدخل الكود أولاً</span>';
+    if (!input) {
+        result.innerHTML = '<span class="error">⚠️ اكتب شيئاً أولاً</span>';
         return;
     }
     
-    result.innerHTML = 'جاري التحقق...';
+    result.innerHTML = '<span class="success">✅ الاختبار ناجح! JavaScript يعمل.</span>';
     
-    try {
-        // تشفير XOR
-        const xorEncrypt = (data) => {
-            const key = "123456";
-            return btoa(data.split('').map((c, i) =>
-                String.fromCharCode(c.charCodeAt(0) ^ key.charCodeAt(i % key.length))
-            ).join(''));
-        };
-        
-        // الاتصال بـ SAMTV
-        const encrypted = xorEncrypt(JSON.stringify({ code: code, action: "get_live" }));
-        
-        const response = await fetch('https://samtv4norm.d1d2.org/login.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': 'SAMTVPro/5.3 (Android; IPTV)',
-                'X-Requested-With': 'com.samtv.app'
-            },
-            body: `json=${encodeURIComponent(encrypted)}`
-        });
-        
-        const data = await response.json();
-        
-        if(data.status === "success") {
-            result.innerHTML = `<span class="success">✅ تم التفعيل! ${data.list?.length || 0} قناة متاحة</span>`;
-            console.log("القنوات:", data.list);
-        } else {
-            result.innerHTML = `<span class="error">❌ فشل: ${data.message || "كود غير صالح"}</span>`;
-        }
-    } catch(error) {
-        result.innerHTML = `<span class="error">❌ خطأ: ${error.message}</span>`;
-        console.error("تفاصيل:", error);
-    }
+    // اختبار إضافي
+    console.log('✅ SAMTV Test:', {
+        input: input,
+        time: new Date().toLocaleTimeString(),
+        userAgent: navigator.userAgent
+    });
 }
 
 // اختبار تلقائي عند التحميل
 window.onload = function() {
-    console.log("صفحة SAMTV جاهزة للاختبار");
-    document.getElementById('codeInput').focus();
+    console.log('✅ Page loaded successfully');
+    document.getElementById('testInput').focus();
+    
+    // عرض رسالة ترحيب
+    setTimeout(() => {
+        const result = document.getElementById('testResult');
+        result.innerHTML = '<span>👆 جرب كتابة شيء والضغط على الزر</span>';
+    }, 1000);
 };
 </script>
 
