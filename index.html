@@ -2,177 +2,66 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>SAMTV - النسخة النهائية</title>
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#000000">
-    
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.10"></script>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SAMTV</title>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system, sans-serif; }
-        body { background:#000; color:#fff; height:100vh; }
-        
-        #loginScreen { display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; padding:20px; }
-        .logo { font-size:40px; color:#0af; margin-bottom:30px; }
-        .input-box { width:90%; max-width:320px; margin-bottom:20px; }
-        input { width:100%; padding:15px; background:#1c1c1e; color:#fff; border:none; border-radius:10px; font-size:16px; text-align:center; }
-        .login-btn { width:90%; max-width:320px; padding:15px; background:#0af; color:#000; border:none; border-radius:10px; font-size:16px; font-weight:bold; }
-        
-        #appScreen { display:none; height:100vh; }
-        .header { background:#1c1c1e; padding:15px; display:flex; justify-content:space-between; align-items:center; }
-        .channels { display:flex; overflow-x:auto; gap:10px; padding:10px; }
-        .channel { width:140px; background:#1c1c1e; border-radius:10px; overflow:hidden; }
-        .channel img { width:100%; height:150px; object-fit:cover; }
-        video { width:100%; height:250px; background:#000; display:none; }
-        
-        .error { color:#ff3b30; text-align:center; padding:20px; }
-        .success { color:#00ff00; text-align:center; padding:20px; }
+        * { margin:0; padding:0; box-sizing:border-box; font-family: sans-serif; }
+        body { background:#000; color:#fff; text-align:center; padding:50px; }
+        input, button { padding:15px; margin:10px; border-radius:10px; font-size:16px; }
+        input { width:300px; background:#222; color:#fff; border:1px solid #444; }
+        button { background:#0af; color:#000; border:none; font-weight:bold; cursor:pointer; }
     </style>
 </head>
 <body>
 
-<div id="loginScreen">
-    <div class="logo">📺 SAMTV</div>
-    <div class="input-box">
-        <input id="code" placeholder="أدخل كود التفعيل">
-    </div>
-    <button class="login-btn" onclick="login()">تفعيل</button>
-    <div id="status" style="margin-top:15px; color:#888; font-size:14px;">أدخل الكود الذي اشتريته</div>
-</div>
-
-<div id="appScreen">
-    <div class="header">
-        <div>SAMTV</div>
-        <button onclick="logout()" style="background:#ff3b30; color:#fff; padding:8px 15px; border-radius:8px;">خروج</button>
-    </div>
-    <video id="player" controls playsinline></video>
-    <div id="content"></div>
-</div>
+<h1>📺 SAMTV</h1>
+<input id="code" placeholder="أدخل كود التفعيل">
+<button onclick="testConnection()">اختبار الاتصال</button>
+<div id="result" style="margin-top:20px;"></div>
 
 <script>
-// دالة تشفير XOR
+async function testConnection() {
+    const code = document.getElementById('code').value || "29319bd15409c675dc2c942946ff972e9a254c43";
+    const result = document.getElementById('result');
+    
+    result.innerHTML = "جاري الاختبار...";
+    
+    try {
+        // 1. اختبار تشفير XOR
+        const encrypted = xorEncrypt(JSON.stringify({
+            code: code,
+            action: "get_live"
+        }));
+        
+        // 2. اختبار الاتصال بالسيرفر
+        const response = await fetch('https://samtv4norm.d1d2.org/login.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'SAMTVPro/5.3 (Android; IPTV)'
+            },
+            body: `json=${encodeURIComponent(encrypted)}`
+        });
+        
+        const data = await response.json();
+        
+        if(data.status === "success") {
+            result.innerHTML = `✅ نجاح! تم جلب ${data.list?.length || 0} قناة`;
+            console.log("القنوات:", data.list);
+        } else {
+            result.innerHTML = `❌ فشل: ${data.message || "كود غير صالح"}`;
+        }
+    } catch(error) {
+        result.innerHTML = `❌ خطأ: ${error.message}`;
+        console.error("تفاصيل الخطأ:", error);
+    }
+}
+
 function xorEncrypt(data) {
     const XOR_KEY = "123456";
     return btoa(data.split('').map((c, i) =>
         String.fromCharCode(c.charCodeAt(0) ^ XOR_KEY.charCodeAt(i % XOR_KEY.length))
     ).join(''));
-}
-
-async function login() {
-    const code = document.getElementById("code").value.trim();
-    if(!code) return alert("أدخل الكود");
-    
-    const status = document.getElementById("status");
-    status.textContent = "جاري التحقق من الكود...";
-    status.style.color = "#0af";
-    
-    try {
-        // الاتصال المباشر من متصفح المستخدم (بدون Cloudflare)
-        const requestData = { code: code, action: "get_live" };
-        const encrypted = xorEncrypt(JSON.stringify(requestData));
-        
-        const response = await fetch('https://samtv4norm.d1d2.org/login.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': 'SAMTVPro/5.3 (Android; IPTV)',
-                'X-Requested-With': 'com.samtv.app',
-                'Connection': 'Keep-Alive',
-                'Accept-Encoding': 'gzip'
-            },
-            body: `json=${encodeURIComponent(encrypted)}`
-        });
-        
-        const result = await response.json();
-        
-        if(result.status === "success") {
-            localStorage.setItem("samtv_code", code);
-            localStorage.setItem("samtv_channels", JSON.stringify(result.list || []));
-            
-            document.getElementById("loginScreen").style.display = "none";
-            document.getElementById("appScreen").style.display = "block";
-            
-            displayChannels(result.list || []);
-            
-            status.textContent = "✅ تم التفعيل بنجاح!";
-            status.style.color = "#00ff00";
-            
-            // إرشاد للإضافة
-            setTimeout(() => {
-                alert("📱 لإضافة التطبيق للشاشة الرئيسية:\n\n1. انقر زر المشاركة في سفاري\n2. اختر 'إضافة للشاشة الرئيسية'\n3. انقر 'إضافة'");
-            }, 1000);
-            
-        } else {
-            status.textContent = "❌ كود غير صالح: " + (result.message || "");
-            status.style.color = "#ff3b30";
-        }
-        
-    } catch(error) {
-        status.textContent = "❌ خطأ في الاتصال بـ SAMTV";
-        status.style.color = "#ff3b30";
-        console.error("Error:", error);
-    }
-}
-
-function displayChannels(channels) {
-    const content = document.getElementById("content");
-    
-    if(!channels || channels.length === 0) {
-        content.innerHTML = '<div class="error">لا توجد قنوات في الاشتراك</div>';
-        return;
-    }
-    
-    let html = '<div class="channels">';
-    
-    channels.forEach(channel => {
-        html += \`
-            <div class="channel" onclick="playChannel('\${channel.url}')">
-                <img src="\${channel.logo || ''}" 
-                     onerror="this.src='https://via.placeholder.com/140x150/333/fff?text=\${channel.name.substring(0,10)}'"
-                     alt="\${channel.name}">
-                <div style="padding:10px; text-align:center">\${channel.name}</div>
-            </div>
-        \`;
-    });
-    
-    html += '</div>';
-    content.innerHTML = html;
-}
-
-function playChannel(url) {
-    const player = document.getElementById("player");
-    player.style.display = "block";
-    
-    if(Hls.isSupported()) {
-        const hls = new Hls();
-        hls.loadSource(url);
-        hls.attachMedia(player);
-        player.play();
-    } else if(player.canPlayType('application/vnd.apple.mpegurl')) {
-        player.src = url;
-        player.play();
-    } else {
-        alert("المتصفح لا يدعم تشغيل هذا النوع من الفيديو");
-    }
-}
-
-function logout() {
-    if(confirm("تسجيل الخروج؟")) {
-        localStorage.clear();
-        location.reload();
-    }
-}
-
-// إذا كان مفعل سابقاً
-if(localStorage.getItem("samtv_code")) {
-    document.getElementById("loginScreen").style.display = "none";
-    document.getElementById("appScreen").style.display = "block";
-    
-    const channels = JSON.parse(localStorage.getItem("samtv_channels") || "[]");
-    displayChannels(channels);
 }
 </script>
 </body>
